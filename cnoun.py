@@ -241,6 +241,24 @@ def main(text):
                 cnouns = max(cnouns,[cdw_arr,point],key=lambda x: x[1])
     return cnouns
 
+def cnoun(text):
+    res = main(text)
+    if res is None:
+        # print(text)
+        # continue
+        return [text]
+    
+    result = []
+    for r in res[0][1:-1]:
+        if onesyl and len(r) > 3 or r[0] in head or r[-1] in tail:
+            for tk in main(r)[0][1:-1]:
+                result.append(tk)
+                # print(tk, end=' ')
+        else:
+            # print(r, end=' ')
+            result.append(r)
+    return result
+
 head = ["전","총"]
 tail = ["역","실","사","부"]
 if __name__ == "__main__":
@@ -250,15 +268,5 @@ if __name__ == "__main__":
     onesyl=True
     while True:
         text = input("복합명사: ")
-        res = main(text)
-        if res is None:
-            print(text)
-            continue
-        for r in res[0][1:-1]:
-            if onesyl and len(r) > 3 or r[0] in head or r[-1] in tail:
-                for tk in main(r)[0][1:-1]:
-                    print(tk, end=' ')
-            else:
-                print(r, end=' ')
-
-        print()
+        print(cnoun(text))
+        # print()
