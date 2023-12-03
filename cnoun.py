@@ -1,14 +1,13 @@
 import copy
+import os
+root = os.environ["HT"] + "/" + "korean_compound_noun_decomposer"
 from collections import defaultdict
 
-# text = "관광버스회사"
-# index = []
-# index2 = []
-# dic = ["백수","혈통","전자","혈","통","통전자","백","수","전","자"]
 enc = "utf-8"
-max_ngram = 4
-def read_dic(file="./unidict.txt"):
+max_ngram = 3
+def read_dic(file=root+"/unidict.txt"):
     dic = []
+    onedic = []
     with open(file,encoding=enc) as dic_file:
         for l in dic_file:
             l = l.strip()
@@ -17,12 +16,14 @@ def read_dic(file="./unidict.txt"):
             l = l[0]
             if len(l) >= 1:
                 dic.append(l)
+            if len(l) == 1:
+                onedic.append(l)
             # elif c > 50:
             #     dic.append(l)
     
-    return dic
+    return dic,onedic
 
-def read_biw(file="./bidict.txt"):
+def read_biw(file=root+"/bidict.txt"):
     wbidic = {}
     
     with open(file,encoding=enc) as bi_dic_file:
@@ -33,7 +34,7 @@ def read_biw(file="./bidict.txt"):
     
     return wbidic
 
-def read_bic(file="./bidict_c.txt"):
+def read_bic(file=root+"/bidict_c.txt"):
     cbidic = {}
     
     with open(file,encoding=enc) as bi_dic_file:
@@ -44,7 +45,7 @@ def read_bic(file="./bidict_c.txt"):
     
     return cbidic
 
-def read_biw(file="./bidict.txt"):
+def read_biw(file=root+"/bidict.txt"):
     bidic = {}
     
     with open(file,encoding=enc) as bi_dic_file:
@@ -55,7 +56,7 @@ def read_biw(file="./bidict.txt"):
     
     return bidic
 
-def read_lbi(file="./lbidict.txt"):
+def read_lbi(file=root+"/lbidict.txt"):
     lbidic = {}
     
     with open(file,encoding=enc) as bi_dic_file:
@@ -66,7 +67,7 @@ def read_lbi(file="./lbidict.txt"):
     
     return lbidic
 
-def read_1syf(file="./1syf.txt"):
+def read_1syf(file=root+"/1syf.txt"):
     one_syf = {}
     
     with open(file,encoding=enc) as bi_dic_file:
@@ -77,7 +78,7 @@ def read_1syf(file="./1syf.txt"):
     
     return one_syf
 
-def read_1syb(file="./1syb.txt"):
+def read_1syb(file=root+"/1syb.txt"):
     one_syb = {}
     
     with open(file,encoding=enc) as bi_dic_file:
@@ -88,7 +89,7 @@ def read_1syb(file="./1syb.txt"):
     
     return one_syb
 
-def read_1syc(file="./1syc.txt"):
+def read_1syc(file=root+"/1syc.txt"):
     one_syc = {}
     
     with open(file,encoding=enc) as bi_dic_file:
@@ -102,6 +103,10 @@ def read_1syc(file="./1syc.txt"):
 f = read_1syf()
 b = read_1syb()
 c = read_1syc()
+dic,onedic = read_dic()
+biwords = read_biw()
+bichars = read_bic()
+onesyl=True
 def check(d, tri):
     try:
         return d[tri]
@@ -112,42 +117,24 @@ def check(d, tri):
 def syl_chk_point(ft,ct,bt):
     return (check(c,ct) * 0.1  + check(f,ft) * 0.35+ check(b,bt) * 0.35 )# / 3
 
-# lbi = read_lbi()
-# print(lbi["|서울대"]+lbi["|입구"]+lbi["|역"]+lbi["|서울대"]+lbi["|입구|"]+lbi["역|"])
-# print(lbi["|서울"]+lbi["|대입"]+lbi["|구역"])
-# exit()
-# while True:
-#     text = input("text: ")
-#     ft = "S"+text[0]+" "
-#     ct = text[0] + " " + text[2]
-#     bt = text[3] + text[2] + " "
-#     print(ft,ct,bt)
-#     print(syl_chk_point(ft,ct,bt))
-    
-#     ft = text[-2]+text[-1]+" "
-#     ct = text[-2] + " " + text[-1]
-#     bt = "E"+text[-1] + " "
-#     print(ft,ct,bt)
-#     print(syl_chk_point(ft,ct,bt))
-# exit()
-
 def candidate(text):
     c = 0
     words = defaultdict(list)
-
-    # for j in range(len(text)):
-    for j in range(max_ngram):
+    
+    for j in range(1,max_ngram):
         c = 0
         for i in range(len(text)-j):
             if text[i:i+j+1] in dic:
                 c+=1
                 words[i].append([c,i,i+j+1,text[i:i+j+1]])
-    
+    # print(words)
+    words[0] = [[1,0,1,text[0]]] + words[0]
+    words[len(text)-1].append([len(text),len(text)-1,len(text)-1+1+1,text[-1]])
+    # print(words)
     return words
 
 def iterative_dfs(start_v, token_list,text):
     discovered = []
-    # print(start_v)
     stack = [start_v]
     count = defaultdict(int)
     
@@ -170,11 +157,9 @@ def calc_word_point(candidate_word_arr):
     for w in range(len(candidate_word_arr)-1):
         bi = candidate_word_arr[w:w+2]
         bistr = ",".join(bi)
-        # print(bistr)
         if bistr in biwords:
             words_point += biwords[bistr] 
     length = len(candidate_word_arr)-1 
-    # print(words_point,candidate_word_arr)
     if length == 0:
         return -1.0
     return words_point / length
@@ -183,9 +168,6 @@ def calc_char_point(candidate_word):
     chars_point = 0.0
     for c in range(len(candidate_word)-1):
         bic = candidate_word[c:c+2] 
-        # if candidate_word[c] != ' ':
-        #     bic = candidate_word[c] + ' '
-        #     # print(bic)
         if bic in bichars:
             chars_point += bichars[bic]
     return chars_point / (len(candidate_word)-1)
@@ -193,9 +175,7 @@ def calc_char_point(candidate_word):
 def main(text):
     cnouns = None
     temp = 0
-    # print(text)
     words = candidate(text)
-    # print(words)
     st = [[] for i in range(10)]
     curr = 0
 
@@ -204,9 +184,6 @@ def main(text):
         # print(candi)
         if len(candi) > 0:
             for cdw in candi:
-                # if ":" not in cdw:
-                #     continue
-
                 cdw = 'S ' + cdw.replace(":"," ") + ' E'
                 cdw_arr = cdw.split()
                 o_nouns = False
@@ -222,7 +199,6 @@ def main(text):
                 chars_point = calc_char_point(cdw)
 
                 point = ((words_point * 0.8) + (chars_point * 0.2))
-                # print(cdw,words_point,chars_point,point)
                 
                 firs_1 = False
                 last_1 = False
@@ -231,41 +207,88 @@ def main(text):
                     first_1 = True
                 if len(cdw_arr[-1]) == 1:
                     last_1 = True
-                # print(cdw_arr[2:-2])
 
-
-                
-                
-                # temp = max(o_nouns
-                # if temp > o_nouns:
                 cnouns = max(cnouns,[cdw_arr,point],key=lambda x: x[1])
     return cnouns
 
+def one_syl(text):
+    cnouns = []
+    if text[0] in onedic and text[1:] in dic:
+        # first = ['S'] + [text[0]] + [text[1:]] + ['E']
+        first = [text[0]] + [text[1:]]
+        
+        chars_point = calc_char_point(' '.join(first))
+        words_point = calc_word_point(first)
+
+        point = ((words_point * 0.8) + (chars_point * 0.2))
+
+        cnouns.append([first,point])
+    if text[-1] in onedic and text[:-1] in dic:
+        # ends = ['S'] + [text[:-1]] + [text[-1]] + ['E']
+        ends = [text[:-1]] + [text[-1]]
+
+        chars_point = calc_char_point(' '.join(ends))
+        words_point = calc_word_point(ends)
+
+        point = ((words_point * 0.8) + (chars_point * 0.2))
+
+        cnouns.append([ends,point])
+    # texts = ['S'] + [text] + ['E']
+    texts = [text]
+    chars_point = calc_char_point(' '.join(texts))
+    words_point = calc_word_point(texts)
+
+    point = ((words_point * 0.8) + (chars_point * 0.2))
+
+    cnouns.append([texts,point])
+
+    return max(cnouns,key=lambda x: x[1])#[0][1:-1]
 def cnoun(text):
     res = main(text)
+    # print(res)
     if res is None:
-        # print(text)
-        # continue
-        return [text]
+        res1 = main(text[:-1])#+[text[-1]])
+        res2 = main(text[1:])
+
+        t = []
+        if res1 != None:
+            res1[0] = res1[0][1:-1] + [text[-1]]
+            t.append(res1)
+
+        if res2 != None:
+            res2[0] = [text[0]] + res2[0][1:-1]
+            t.append(res2)
+
+        if not res1 and not res2:
+            return [text]
+        else:
+            return max(t,key=lambda x: x[1])[0]
     
     result = []
     for r in res[0][1:-1]:
-        if onesyl and len(r) > 3 or r[0] in head or r[-1] in tail:
-            for tk in main(r)[0][1:-1]:
+        if onesyl and len(r) > 2:
+            result_tmp = []
+            three_check_ori = ['S'] + [r] #+ ['E']
+            chars_point = calc_char_point(' '.join(three_check_ori))
+            words_point = calc_word_point(three_check_ori)
+            point = ((words_point * 0.8) + (chars_point * 0.2))
+            result_tmp.append([three_check_ori,point])
+
+            one_tk = one_syl(r)
+
+            result_tmp.append(one_tk)
+            for tk in max(result_tmp,key=lambda x: x[1])[0][1:]:
                 result.append(tk)
-                # print(tk, end=' ')
+
         else:
-            # print(r, end=' ')
+
             result.append(r)
+
     return result
 
-head = ["전","총"]
-tail = ["역","실","사","부"]
+# head = ["전","총"]
+# tail = ["역","실","사","부"]
 if __name__ == "__main__":
-    dic = read_dic()
-    biwords = read_biw()
-    bichars = read_bic()
-    onesyl=True
     while True:
         text = input("복합명사: ")
         print(cnoun(text))
